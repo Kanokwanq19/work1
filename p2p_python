@@ -1,0 +1,143 @@
+import socket : นำเข้าชุดคำสั่งสำหรับการเชื่อมต่อผ่านเครือข่าย
+import threading : นำเข้าชุดคำสั่งสำหรับการใช้งาน thread เพื่อให้สามารถทำงานหลายๆ งานพร้อมกันได้
+import json : นำเข้าชุดคำสั่งสำหรับการจัดการกับข้อมูลในรูปแบบ JSON
+import sys : นำเข้าชุดคำสั่งสำหรับการจัดการกับระบบ
+import os : นำเข้าชุดคำสั่งสำหรับการจัดการกับระบบไฟล์
+import secrets : นำเข้าชุดคำสั่งสำหรับการสร้างข้อมูลแบบสุ่มที่ปลอดภัย
+class Node: : สร้างคลาส Node ที่ใช้เป็นตัวแทนของโหนดในเครือข่าย
+def __init__(self, host, port): : ฟังก์ชันเริ่มต้นของคลาส ใช้กำหนดค่าเริ่มต้นให้กับโหนด
+self.host = host และ self.port = port : กำหนดที่อยู่และพอร์ตของโหนด
+self.peers = [] : สร้างลิสต์เพื่อเก็บรายการของ peers ที่เชื่อมต่อ
+self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) : สร้าง socket เพื่อใช้ในการเชื่อมต่อผ่าน TCP/IP
+self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) : ตั้งค่า socket ให้สามารถใช้งานพอร์ตเดิมได้ทันทีหลังจากปิดการใช้งาน
+self.transactions = [] : สร้างลิสต์เพื่อเก็บรายการ transactions
+self.transaction_file = f"transactions_{port}.json" : กำหนดชื่อไฟล์ที่จะใช้บันทึก transactions ตามพอร์ตของโหนด
+self.wallet_address = self.generate_wallet_address() : สร้าง wallet address สำหรับโหนดนี้โดยใช้ฟังก์ชัน generate_wallet_address
+def generate_wallet_address(self): : ฟังก์ชันสำหรับสร้าง wallet address
+return '0x' + secrets.token_hex(20) : สร้าง string ที่ขึ้นต้นด้วย '0x' และตามด้วยข้อมูลสุ่มแบบ hex ขนาด 20 bytes
+def start(self): : ฟังก์ชันสำหรับเริ่มต้นการทำงานของโหนด
+self.socket.bind((self.host, self.port)) : ผูก socket กับที่อยู่และพอร์ตที่กำหนด
+self.socket.listen(1) : ทำให้ socket รอรับการเชื่อมต่อใหม่
+print(f"Node listening on {self.host}:{self.port}") : แสดงข้อความว่ากำลังฟังการเชื่อมต่อที่ที่อยู่และพอร์ตนี้
+print(f"Your wallet address is: {self.wallet_address}") : แสดง wallet address ของโหนด
+self.load_transactions() : โหลด transactions จากไฟล์ (ถ้ามี)
+accept_thread = threading.Thread(target=self.accept_connections) : สร้าง thread ใหม่เพื่อรับการเชื่อมต่อใหม่
+accept_thread.start() : เริ่มต้น thread สำหรับรับการเชื่อมต่อใหม่
+def accept_connections(self): : ฟังก์ชันสำหรับรับการเชื่อมต่อใหม่
+while True: : ทำงานวนลูปไม่รู้จบ
+client_socket, address = self.socket.accept() : รอรับการเชื่อมต่อใหม่จาก client และรับค่า socket และ address ของ client
+print(f"New connection from {address}") : แสดงข้อความว่ามีการเชื่อมต่อใหม่จาก address นี้
+client_thread = threading.Thread(target=self.handle_client, args=(client_socket,)) : สร้าง thread ใหม่เพื่อจัดการกับการเชื่อมต่อนี้
+client_thread.start() : เริ่มต้น thread เพื่อจัดการกับการเชื่อมต่อนี้
+def handle_client(self, client_socket): : ฟังก์ชันสำหรับจัดการกับการเชื่อมต่อจาก client
+while True: : ทำงานวนลูปไม่รู้จบ
+try: : เริ่มต้น block สำหรับจัดการกับข้อยกเว้น (exception)
+data = client_socket.recv(1024) : รับข้อมูลจาก client ขนาด 1024 bytes
+if not data: : ตรวจสอบว่ามีข้อมูลหรือไม่
+break : ถ้าไม่มีข้อมูล ให้หยุดการวนลูป
+message = json.loads(data.decode('utf-8')) : ถอดรหัสข้อมูลที่ได้รับจาก client และแปลงเป็นรูปแบบ JSON
+self.process_message(message, client_socket) : ประมวลผลข้อความที่ได้รับจาก client โดยใช้ฟังก์ชัน process_message
+except Exception as e: : จับข้อยกเว้นที่เกิดขึ้น
+print(f"Error handling client: {e}") : แสดงข้อความข้อผิดพลาดที่เกิดขึ้น
+break : หยุดการวนลูปถ้ามีข้อผิดพลาด
+client_socket.close() : ปิดการเชื่อมต่อกับ client
+def handle_client(self, client_socket): : ฟังก์ชันสำหรับจัดการกับการเชื่อมต่อจาก client
+while True: : ทำงานวนลูปไม่รู้จบ
+try: : เริ่มต้น block สำหรับจัดการกับข้อยกเว้น (exception)
+data = client_socket.recv(1024) : รับข้อมูลจาก client ขนาด 1024 bytes
+if not data: : ตรวจสอบว่ามีข้อมูลหรือไม่
+break : ถ้าไม่มีข้อมูล ให้หยุดการวนลูป
+message = json.loads(data.decode('utf-8')) : ถอดรหัสข้อมูลที่ได้รับจาก client และแปลงเป็นรูปแบบ JSON
+self.process_message(message, client_socket) : ประมวลผลข้อความที่ได้รับจาก client โดยใช้ฟังก์ชัน process_message
+except Exception as e: : จับข้อยกเว้นที่เกิดขึ้น
+print(f"Error handling client: {e}") : แสดงข้อความข้อผิดพลาดที่เกิดขึ้น
+break : หยุดการวนลูปถ้ามีข้อผิดพลาด
+client_socket.close() : ปิดการเชื่อมต่อกับ client
+def connect_to_peer(self, peer_host, peer_port): : ฟังก์ชันสำหรับเชื่อมต่อกับ peer
+try: : เริ่มต้น block สำหรับจัดการกับข้อยกเว้น (exception)
+peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) : สร้าง socket ใหม่เพื่อใช้ในการเชื่อมต่อกับ peer
+peer_socket.connect((peer_host, peer_port)) : เชื่อมต่อกับ peer ที่ host และ port ที่กำหนด
+self.peers.append(peer_socket) : เพิ่ม socket ของ peer ที่เชื่อมต่อเข้าไปในลิสต์ peers
+print(f"Connected to peer {peer_host}:{peer_port}") : แสดงข้อความว่าการเชื่อมต่อกับ peer สำเร็จ
+self.request_sync(peer_socket) : ขอข้อมูล transactions ทั้งหมดจาก peer โดยใช้ฟังก์ชัน request_sync
+peer_thread = threading.Thread(target=self.handle_client, args=(peer_socket,)) : สร้าง thread ใหม่เพื่อจัดการกับการเชื่อมต่อนี้
+peer_thread.start() : เริ่มต้น thread เพื่อจัดการกับการเชื่อมต่อนี้
+except Exception as e: : จับข้อยกเว้นที่เกิดขึ้น
+print(f"Error connecting to peer: {e}") : แสดงข้อความข้อผิดพลาดที่เกิดขึ้น
+def broadcast(self, message): : ฟังก์ชันสำหรับส่งข้อมูลไปยังทุก peer ที่เชื่อมต่ออยู่
+for peer_socket in self.peers: : วนลูปผ่านทุก peer ที่เชื่อมต่ออยู่
+try: : เริ่มต้น block สำหรับจัดการกับข้อยกเว้น (exception)
+peer_socket.send(json.dumps(message).encode('utf-8')) : ส่งข้อมูลที่แปลงเป็น JSON และเข้ารหัสเป็น utf-8 ไปยัง peer
+except Exception as e: : จับข้อยกเว้นที่เกิดขึ้น
+print(f"Error broadcasting to peer: {e}") : แสดงข้อความข้อผิดพลาดที่เกิดขึ้น
+self.peers.remove(peer_socket) : ลบ peer ที่เชื่อมต่อออกจากลิสต์ peers
+def process_message(self, message, client_socket): : ฟังก์ชันสำหรับประมวลผลข้อความที่ได้รับ
+if message['type'] == 'transaction': : ถ้าข้อความเป็นประเภท 'transaction'
+print(f"Received transaction: {message['data']}") : แสดงข้อความว่าได้รับ transaction
+self.add_transaction(message['data']) : เพิ่ม transaction โดยใช้ฟังก์ชัน add_transaction
+elif message['type'] == 'sync_request': : ถ้าข้อความเป็นประเภท 'sync_request'
+self.send_all_transactions(client_socket) : ส่ง transactions ทั้งหมดไปยังโหนดที่ขอซิงโครไนซ์ โดยใช้ฟังก์ชัน send_all_transactions
+elif message['type'] == 'sync_response': : ถ้าข้อความเป็นประเภท 'sync_response'
+self.receive_sync_data(message['data']) : รับและประมวลผลข้อมูล transactions ที่ได้รับจากการซิงโครไนซ์ โดยใช้ฟังก์ชัน receive_sync_data
+else: : ถ้าข้อความเป็นประเภทอื่น
+print(f"Received message: {message}") : แสดงข้อความที่ได้รับ
+def add_transaction(self, transaction): : ฟังก์ชันสำหรับเพิ่ม transaction ใหม่และบันทึกลงไฟล์
+if transaction not in self.transactions: : ตรวจสอบว่า transaction นี้ยังไม่ถูกเพิ่มเข้าไปในลิสต์ transactions
+self.transactions.append(transaction) : เพิ่ม transaction ลงในลิสต์ transactions
+self.save_transactions() : บันทึก transactions ลงไฟล์ โดยใช้ฟังก์ชัน save_transactions
+print(f"Transaction added and saved: {transaction}") : แสดงข้อความว่า transaction ถูกเพิ่มและบันทึกเรียบร้อยแล้ว
+def create_transaction(self, recipient, amount): : ฟังก์ชันสำหรับสร้าง transaction ใหม่
+transaction = { 'sender': self.wallet_address, 'recipient': recipient, 'amount': amount } : สร้าง transaction ใหม่โดยมี sender เป็น wallet address ของโหนดนี้, recipient เป็นที่อยู่ของผู้รับ และ amount เป็นจำนวนเงิน
+self.add_transaction(transaction) : เพิ่ม transaction โดยใช้ฟังก์ชัน add_transaction
+self.broadcast({'type': 'transaction', 'data': transaction}) : ส่ง transaction ไปยังทุก peer ที่เชื่อมต่ออยู่ โดยใช้ฟังก์ชัน broadcast
+def save_transactions(self): : ฟังก์ชันสำหรับบันทึก transactions ลงไฟล์
+with open(self.transaction_file, 'w') as f: : เปิดไฟล์สำหรับเขียน
+json.dump(self.transactions, f) : เขียน transactions ลงไฟล์ในรูปแบบ JSON
+def load_transactions(self): : ฟังก์ชันสำหรับโหลด transactions จากไฟล์ (ถ้ามี)
+if os.path.exists(self.transaction_file): : ตรวจสอบว่าไฟล์ transactions มีอยู่หรือไม่
+with open(self.transaction_file, 'r') as f: : เปิดไฟล์สำหรับอ่าน
+self.transactions = json.load(f) : โหลด transactions จากไฟล์ในรูปแบบ JSON และเก็บในลิสต์ transactions
+print(f"Loaded {len(self.transactions)} transactions from file.") : แสดงข้อความว่าโหลด transactions จำนวนเท่าใดจากไฟล์
+def request_sync(self, peer_socket): : ฟังก์ชันสำหรับส่งคำขอซิงโครไนซ์ไปยัง peer
+sync_request = json.dumps({"type": "sync_request"}).encode('utf-8') : สร้างคำขอซิงโครไนซ์ในรูปแบบ JSON และเข้ารหัสเป็น utf-8
+peer_socket.send(sync_request) : ส่งคำขอซิงโครไนซ์ไปยัง peer
+def send_all_transactions(self, client_socket): : ฟังก์ชันสำหรับส่ง transactions ทั้งหมดไปยังโหนดที่ขอซิงโครไนซ์
+sync_data = json.dumps({ "type": "sync_response", "data": self.transactions }).encode('utf-8') : สร้างข้อมูล transactions ทั้งหมดในรูปแบบ JSON และเข้ารหัสเป็น utf-8
+client_socket.send(sync_data) : ส่งข้อมูล transactions ไปยังโหนดที่ขอซิงโครไนซ์
+def receive_sync_data(self, sync_transactions): : ฟังก์ชันสำหรับรับและประมวลผลข้อมูล transactions ที่ได้รับจากการซิงโครไนซ์
+for tx in sync_transactions: : วนลูปผ่าน transactions ที่ได้รับจากการซิงโครไนซ์
+self.add_transaction(tx) : เพิ่ม transaction โดยใช้ฟังก์ชัน add_transaction
+if __name__ == "__main__": : ตรวจสอบว่าไฟล์นี้ถูกเรียกใช้โดยตรงหรือไม่
+if len(sys.argv) != 2: : ตรวจสอบว่าจำนวนอาร์กิวเมนต์เท่ากับ 2 หรือไม่
+print("Usage: python script.py <port>") : แสดงวิธีการใช้งานสคริปต์
+sys.exit(1) : ออกจากโปรแกรมด้วยรหัสสถานะ 1
+port = int(sys.argv[1]) : รับพอร์ตจากอาร์กิวเมนต์ที่ผู้ใช้ส่งเข้ามา
+node = Node("0.0.0.0", port) : สร้าง instance ของคลาส Node โดยใช้ "0.0.0.0" เพื่อรับการเชื่อมต่อจากภายนอก
+node.start() : เริ่มต้นการทำงานของโหนด
+while True: : เริ่มลูปที่ไม่มีที่สิ้นสุด
+print("\n1. Connect to a peer") : แสดงตัวเลือกการเชื่อมต่อกับ peer
+print("2. Create a transaction") : แสดงตัวเลือกการสร้าง transaction
+print("3. View all transactions") : แสดงตัวเลือกการดู transactions ทั้งหมด
+print("4. View my wallet address") : แสดงตัวเลือกการดูที่อยู่กระเป๋าเงินของตนเอง
+print("5. Exit") : แสดงตัวเลือกการออกจากโปรแกรม
+choice = input("Enter your choice: ") : รับตัวเลือกจากผู้ใช้
+if choice == '1': : ถ้าผู้ใช้เลือกตัวเลือกที่ 1
+peer_host = input("Enter peer host to connect: ") : รับที่อยู่โฮสต์ของ peer ที่ต้องการเชื่อมต่อ
+peer_port = int(input("Enter peer port to connect: ")) : รับพอร์ตของ peer ที่ต้องการเชื่อมต่อ
+node.connect_to_peer(peer_host, peer_port) : เชื่อมต่อไปยัง peer โดยใช้ฟังก์ชัน connect_to_peer
+elif choice == '2': : ถ้าผู้ใช้เลือกตัวเลือกที่ 2
+recipient = input("Enter recipient wallet address: ") : รับที่อยู่กระเป๋าเงินของผู้รับ
+amount = float(input("Enter amount: ")) : รับจำนวนเงิน
+node.create_transaction(recipient, amount) : สร้าง transaction โดยใช้ฟังก์ชัน create_transaction
+elif choice == '3': : ถ้าผู้ใช้เลือกตัวเลือกที่ 3
+print("All transactions:") : แสดงข้อความว่า transactions ทั้งหมด
+for tx in node.transactions: : วนลูปผ่าน transactions ทั้งหมด
+print(tx) : แสดง transaction
+elif choice == '4': : ถ้าผู้ใช้เลือกตัวเลือกที่ 4
+print(f"Your wallet address is: {node.wallet_address}") : แสดงที่อยู่กระเป๋าเงินของตนเอง
+elif choice == '5': : ถ้าผู้ใช้เลือกตัวเลือกที่ 5
+break : ออกจากลูป
+else: : ถ้าผู้ใช้เลือกตัวเลือกที่ไม่ถูกต้อง
+print("Invalid choice. Please try again.") : แสดงข้อความว่าตัวเลือกไม่ถูกต้อง ให้ลองอีกครั้ง
+print("Exiting...") : แสดงข้อความว่ากำลังออกจากโปรแกรม
+print(f"Synchronized {len(sync_transactions)} transactions.") : แสดงข้อความว่าซิงโครไนซ์ transactions จำนวนเท่าใดแล้ว
